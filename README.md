@@ -4,6 +4,62 @@ Gnars Lootbox V1 is a VRF‑secured lootbox contract on Base that sells three ti
 
 This README is written for a junior dev who is new to the project and needs to take over operations safely.
 
+Project layout:
+- V1 contract + tests live in `src/` and `test/`.
+- V2 work-in-progress lives in `v2/` (see `v2/README.md`).
+
+## Gnars Lootbox V2 (Planned)
+
+V2 introduces **bundle rewards** (GNARS + 1–3 NFTs together) and a **flex box** option where users can pay any amount above a minimum to get GNARS and a small chance at an NFT.
+
+### V2 Core Rules
+
+- Every bundle includes **both** GNARS and 1–3 NFTs.
+- GNARS amount must be **exactly** one of:
+  - 1,000 / 5,000 / 10,000 / 100,000 (in token units).
+- Bundle rarity is controlled by `weight`.
+- Flex box: user pays any ETH >= `minFlexEth`.
+  - Tiny chance of “nothing”.
+  - Small chance of 1 NFT.
+  - Otherwise receives GNARS.
+
+### V2 Defaults (Owner Settable)
+
+- `minFlexEth`: `0.0002 ether`
+- `flexNothingBps`: `20` (0.20%)
+- `flexNftBps`: `50` (0.50%)
+- `flexGnarsBase`: `500 GNARS`
+- `flexGnarsPerEth`: `10,000 GNARS / 1 ETH`
+
+### V2 Price Strategy (DAO Argument)
+
+Treat GNARS as a gift (cost = 0 for pricing).  
+Goal: **>= 0.015 ETH per NFT on average**.
+
+Flex box example:
+```
+minFlexEth = 0.0002 ETH
+pNFT = 0.50% = 0.005
+expected ETH per NFT = 0.0002 / 0.005 = 0.04 ETH
+```
+This is safely above 0.015 ETH.
+
+### V2 Contract Additions
+
+- `depositBundle(nftContracts[], nftIds[], gnarsAmount, boxType, weight)`
+- `depositFlexNft(nft, tokenId)`
+- `depositGnars(amount)` (for flex GNARS reserve)
+- `openFlexBox()`
+- `getPoolBalances(boxType)`
+- `getFlexBalances()`
+- `setFlexConfig(...)`
+
+### V2 Notes
+
+- Flex box reverts if NFT pool is empty and `flexNftBps > 0`.
+- GNARS for bundles is **reserved** so flex payouts can’t spend it.
+- All config values are owner‑settable for test vs production tuning.
+
 ### Core Constants (Base Mainnet)
 
 - **VRF Coordinator (v2.5):** `0x0d5D517aBE5cF79B7e95eC98dB0f0277788aFF634`
