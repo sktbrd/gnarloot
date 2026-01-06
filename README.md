@@ -72,7 +72,7 @@ This is safely above 0.015 ETH.
 ### Current Test Setup (Update If Changed)
 
 - **Chain:** Base mainnet (chainId `8453`)
-- **Latest test contract:** `0x5425186b0dd257130dC7D52ebbA3673cF2a9a08f`
+- **Latest test contract:** `0xEB793fc0D366FE7C6d0407f181CF5F6b49CE59b1`
 - **Owner (test wallet):** `0x8Bf5941d27176242745B716251943Ae4892a3C26`
 - **Treasury (test):** `0x72ad986ebac0246d2b3c565ab2a1ce3a14ce6f88`
 - **Subscription ID (v2.5):** `99565515620834636304250522028617269923610402981851221983571694477234087866635`
