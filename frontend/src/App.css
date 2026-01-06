@@ -68,6 +68,12 @@ h1 {
   gap: 12px;
 }
 
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 label {
   display: block;
   margin-bottom: 6px;
@@ -96,6 +102,28 @@ input:focus {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tab {
+  cursor: pointer;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid #2c3442;
+  background: #0f121a;
+  color: #c9d2e5;
+  font-weight: 600;
+}
+
+.tab.active {
+  border-color: #5df0c8;
+  background: rgba(93, 240, 200, 0.15);
+  color: #d4fff0;
 }
 
 select {

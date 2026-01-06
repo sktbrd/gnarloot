@@ -12,7 +12,7 @@ const DEFAULTS = {
 };
 const DEFAULT_CONTRACTS = {
   v1: "",
-  v2: "0x5425186b0dd257130dC7D52ebbA3673cF2a9a08f",
+  v2: "0xEB793fc0D366FE7C6d0407f181CF5F6b49CE59b1",
 };
 
 // ABI from forge inspect (constructor + read/openBox subset).
@@ -68,6 +68,80 @@ const V2_ABI = [
   { type: "function", name: "openFlexBox", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "payable" },
   { type: "function", name: "minFlexEth", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
   { type: "function", name: "getFlexBalances", inputs: [], outputs: [{ type: "uint256" }, { type: "uint256" }, { type: "uint256" }], stateMutability: "view" },
+  { type: "function", name: "gnarsToken", inputs: [], outputs: [{ type: "address" }], stateMutability: "view" },
+  { type: "function", name: "gnarsUnit", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
+  { type: "function", name: "flexNothingBps", inputs: [], outputs: [{ type: "uint16" }], stateMutability: "view" },
+  { type: "function", name: "flexNftBps", inputs: [], outputs: [{ type: "uint16" }], stateMutability: "view" },
+  { type: "function", name: "flexGnarsBase", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
+  { type: "function", name: "flexGnarsPerEth", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
+  { type: "function", name: "totalReservedGnars", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
+  {
+    type: "function",
+    name: "getPoolBalances",
+    inputs: [{ name: "boxType", type: "uint8" }],
+    outputs: [{ type: "uint256" }, { type: "uint256" }, { type: "uint256" }, { type: "uint256" }],
+    stateMutability: "view",
+  },
+  { type: "function", name: "setAllowedERC721", inputs: [{ name: "nft", type: "address" }, { name: "allowed", type: "bool" }], outputs: [], stateMutability: "nonpayable" },
+  { type: "function", name: "setTreasury", inputs: [{ name: "_treasury", type: "address" }], outputs: [], stateMutability: "nonpayable" },
+  {
+    type: "function",
+    name: "setPrices",
+    inputs: [{ name: "standard", type: "uint256" }, { name: "gnarly", type: "uint256" }, { name: "epic", type: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "setVrfConfig",
+    inputs: [
+      { name: "_callbackGasLimit", type: "uint32" },
+      { name: "_requestConfirmations", type: "uint16" },
+      { name: "_numWords", type: "uint32" },
+      { name: "_keyHash", type: "bytes32" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "setFlexConfig",
+    inputs: [
+      { name: "_minFlexEth", type: "uint256" },
+      { name: "_flexNothingBps", type: "uint16" },
+      { name: "_flexNftBps", type: "uint16" },
+      { name: "_flexGnarsBase", type: "uint256" },
+      { name: "_flexGnarsPerEth", type: "uint256" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  { type: "function", name: "pause", inputs: [], outputs: [], stateMutability: "nonpayable" },
+  { type: "function", name: "unpause", inputs: [], outputs: [], stateMutability: "nonpayable" },
+  {
+    type: "function",
+    name: "depositBundle",
+    inputs: [
+      { name: "nftContracts", type: "address[]" },
+      { name: "nftIds", type: "uint256[]" },
+      { name: "gnarsAmount", type: "uint256" },
+      { name: "boxType", type: "uint8" },
+      { name: "weight", type: "uint32" },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  { type: "function", name: "depositFlexNft", inputs: [{ name: "nft", type: "address" }, { name: "tokenId", type: "uint256" }], outputs: [], stateMutability: "nonpayable" },
+  { type: "function", name: "depositGnars", inputs: [{ name: "amount", type: "uint256" }], outputs: [], stateMutability: "nonpayable" },
+];
+
+const ERC20_ABI = [
+  { type: "function", name: "approve", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }], stateMutability: "nonpayable" },
+];
+
+const ERC721_ABI = [
+  { type: "function", name: "approve", inputs: [{ name: "to", type: "address" }, { name: "tokenId", type: "uint256" }], outputs: [], stateMutability: "nonpayable" },
+  { type: "function", name: "setApprovalForAll", inputs: [{ name: "operator", type: "address" }, { name: "approved", type: "bool" }], outputs: [], stateMutability: "nonpayable" },
 ];
 
 const V2_BYTECODE =
@@ -80,6 +154,7 @@ const CONTRACTS = {
 
 function App() {
   const { address, isConnected } = useAccount();
+  const [activeTab, setActiveTab] = useState("test");
   const [contractKey, setContractKey] = useState("v2");
   const [contractAddress, setContractAddress] = useState(DEFAULT_CONTRACTS.v2);
   const [form, setForm] = useState({
@@ -105,11 +180,55 @@ function App() {
     coordinator: null,
     minFlexEth: null,
     flexBalances: null,
+    gnarsToken: null,
+    gnarsUnit: null,
+    flexNothingBps: null,
+    flexNftBps: null,
+    flexGnarsBase: null,
+    flexGnarsPerEth: null,
+    totalReservedGnars: null,
   });
   const [openBoxType, setOpenBoxType] = useState("0");
   const [flexEth, setFlexEth] = useState("0.0002");
   const [openStatus, setOpenStatus] = useState("OpenBox: idle");
   const [debugLog, setDebugLog] = useState([]);
+  const [adminStatus, setAdminStatus] = useState("Admin: idle");
+  const [poolBalances, setPoolBalances] = useState(null);
+  const [poolBalancesAll, setPoolBalancesAll] = useState(null);
+  const [adminForm, setAdminForm] = useState({
+    standardPriceEth: "0.0001",
+    gnarlyPriceEth: "0.0002",
+    epicPriceEth: "0.0003",
+    newTreasury: "0x8Bf5941d27176242745B716251943Ae4892a3C26",
+    allowedNft: "",
+    allowedValue: "true",
+    callbackGasLimit: "400000",
+    requestConfirmations: "3",
+    numWords: "1",
+    vrfKeyHash: DEFAULTS.keyHash,
+    minFlexEth: "0.0002",
+    flexNothingBps: "20",
+    flexNftBps: "50",
+    flexGnarsBase: "500",
+    flexGnarsPerEth: "10000",
+    approveErc20Token: "0x0cf0c3b75d522290d7d12c74d7f1f0cc47ccb23b",
+    approveErc20Spender: "",
+    approveErc20Amount: "1000",
+    approveErc721Token: "",
+    approveErc721Spender: "",
+    approveErc721TokenId: "",
+    approveErc721Operator: "",
+    approveErc721Approved: "true",
+    depositGnarsAmount: "1000",
+    flexNftAddress: "",
+    flexNftTokenId: "",
+    bundleBoxType: "0",
+    bundleWeight: "1",
+    bundleGnarsAmount: "1000",
+    bundleNftContracts: "",
+    bundleNftIds: "",
+    poolBoxType: "0",
+  });
 
   const activeContract = CONTRACTS[contractKey];
   const deployIssues = useMemo(() => {
@@ -154,6 +273,237 @@ function App() {
     setDebugLog((prev) => [...prev, `[${new Date().toISOString()}] ${msg}`].slice(-200));
   };
 
+  const handleAdminChange = (e) => {
+    const { name, value } = e.target;
+    setAdminForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const parseCsv = (value) =>
+    value
+      .split(",")
+      .map((item) => item.trim())
+      .filter((item) => item.length);
+
+  const parseCsvNumbers = (value) => parseCsv(value).map((item) => BigInt(item));
+
+  const parseWhole = (label, value) => {
+    if (!value || !/^\d+$/.test(value)) {
+      throw new Error(`${label} must be a whole number`);
+    }
+    return BigInt(value);
+  };
+
+  const formatGnars = (value) => {
+    if (value === null || value === undefined) return "-";
+    const raw = BigInt(value);
+    const unit = readings.gnarsUnit ?? form.gnarsUnit;
+    if (!unit) return raw.toString();
+    const divisor = BigInt(unit);
+    const tokens = divisor > 0n ? (raw / divisor).toString() : "-";
+    return `${raw.toString()} wei (${tokens} tokens)`;
+  };
+
+  const toGnarsWei = (label, value) => {
+    const unit = readings.gnarsUnit ?? form.gnarsUnit;
+    if (!unit) throw new Error("GNARS unit not loaded");
+    return parseWhole(label, value) * BigInt(unit);
+  };
+
+  const getReadContract = async () => {
+    if (!window.ethereum) throw new Error("No injected wallet found.");
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const network = await provider.getNetwork();
+    if (network.chainId !== 8453n) {
+      throw new Error(`Wrong network. Switch to Base mainnet (8453). Current: ${network.chainId}`);
+    }
+    return new ethers.Contract(contractAddress, activeContract.abi, provider);
+  };
+
+  const getSignerContract = async () => {
+    if (!window.ethereum) throw new Error("No injected wallet found.");
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const network = await provider.getNetwork();
+    if (network.chainId !== 8453n) {
+      throw new Error(`Wrong network. Switch to Base mainnet (8453). Current: ${network.chainId}`);
+    }
+    const signer = await provider.getSigner();
+    return new ethers.Contract(contractAddress, activeContract.abi, signer);
+  };
+
+  const submitAdminTx = async (label, fn) => {
+    try {
+      setAdminStatus(`Admin: ${label} submitting...`);
+      log(`admin: ${label} submit`);
+      const tx = await fn();
+      log(`admin: ${label} tx ${tx.hash}`);
+      setAdminStatus(`Admin: ${label} submitted ${tx.hash}`);
+      await tx.wait();
+      log(`admin: ${label} confirmed ${tx.hash}`);
+      setAdminStatus(`Admin: ${label} confirmed ${tx.hash}`);
+    } catch (err) {
+      const msg = err.shortMessage || err.reason || err.message || err;
+      log(`admin: ${label} error ${msg}`);
+      setAdminStatus(`Admin: ${label} error ${msg}`);
+    }
+  };
+
+  const setPrices = async () =>
+    submitAdminTx("setPrices", async () => {
+      const contract = await getSignerContract();
+      const standard = ethers.parseEther(adminForm.standardPriceEth || "0");
+      const gnarly = ethers.parseEther(adminForm.gnarlyPriceEth || "0");
+      const epic = ethers.parseEther(adminForm.epicPriceEth || "0");
+      return contract.setPrices(standard, gnarly, epic);
+    });
+
+  const setTreasury = async () =>
+    submitAdminTx("setTreasury", async () => {
+      const contract = await getSignerContract();
+      const treasury = ethers.getAddress(adminForm.newTreasury);
+      return contract.setTreasury(treasury);
+    });
+
+  const setAllowedERC721 = async () =>
+    submitAdminTx("setAllowedERC721", async () => {
+      const contract = await getSignerContract();
+      const nft = ethers.getAddress(adminForm.allowedNft);
+      const allowed = adminForm.allowedValue === "true";
+      return contract.setAllowedERC721(nft, allowed);
+    });
+
+  const setVrfConfig = async () =>
+    submitAdminTx("setVrfConfig", async () => {
+      const contract = await getSignerContract();
+      const callbackGasLimit = Number.parseInt(adminForm.callbackGasLimit, 10);
+      const requestConfirmations = Number.parseInt(adminForm.requestConfirmations, 10);
+      const numWords = Number.parseInt(adminForm.numWords, 10);
+      return contract.setVrfConfig(callbackGasLimit, requestConfirmations, numWords, adminForm.vrfKeyHash);
+    });
+
+  const setFlexConfig = async () =>
+    submitAdminTx("setFlexConfig", async () => {
+      const contract = await getSignerContract();
+      const minFlexEth = ethers.parseEther(adminForm.minFlexEth || "0");
+      const flexNothingBps = Number.parseInt(adminForm.flexNothingBps, 10);
+      const flexNftBps = Number.parseInt(adminForm.flexNftBps, 10);
+      const flexGnarsBase = toGnarsWei("flexGnarsBase", adminForm.flexGnarsBase);
+      const flexGnarsPerEth = toGnarsWei("flexGnarsPerEth", adminForm.flexGnarsPerEth);
+      return contract.setFlexConfig(minFlexEth, flexNothingBps, flexNftBps, flexGnarsBase, flexGnarsPerEth);
+    });
+
+  const pauseContract = async () =>
+    submitAdminTx("pause", async () => {
+      const contract = await getSignerContract();
+      return contract.pause();
+    });
+
+  const unpauseContract = async () =>
+    submitAdminTx("unpause", async () => {
+      const contract = await getSignerContract();
+      return contract.unpause();
+    });
+
+  const approveErc20 = async () =>
+    submitAdminTx("approveERC20", async () => {
+      if (!window.ethereum) throw new Error("No injected wallet found.");
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const token = ethers.getAddress(adminForm.approveErc20Token || readings.gnarsToken);
+      const spender = ethers.getAddress(adminForm.approveErc20Spender || contractAddress);
+      const amount = toGnarsWei("approveErc20Amount", adminForm.approveErc20Amount);
+      const erc20 = new ethers.Contract(token, ERC20_ABI, signer);
+      return erc20.approve(spender, amount);
+    });
+
+  const approveErc721 = async () =>
+    submitAdminTx("approveERC721", async () => {
+      if (!window.ethereum) throw new Error("No injected wallet found.");
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const token = ethers.getAddress(adminForm.approveErc721Token);
+      const spender = ethers.getAddress(adminForm.approveErc721Spender || contractAddress);
+      const tokenId = BigInt(adminForm.approveErc721TokenId);
+      const erc721 = new ethers.Contract(token, ERC721_ABI, signer);
+      return erc721.approve(spender, tokenId);
+    });
+
+  const approveErc721ForAll = async () =>
+    submitAdminTx("setApprovalForAll", async () => {
+      if (!window.ethereum) throw new Error("No injected wallet found.");
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const token = ethers.getAddress(adminForm.approveErc721Token);
+      const operator = ethers.getAddress(adminForm.approveErc721Operator || contractAddress);
+      const approved = adminForm.approveErc721Approved === "true";
+      const erc721 = new ethers.Contract(token, ERC721_ABI, signer);
+      return erc721.setApprovalForAll(operator, approved);
+    });
+
+  const depositGnars = async () =>
+    submitAdminTx("depositGnars", async () => {
+      const contract = await getSignerContract();
+      const amount = toGnarsWei("depositGnarsAmount", adminForm.depositGnarsAmount);
+      return contract.depositGnars(amount);
+    });
+
+  const depositFlexNft = async () =>
+    submitAdminTx("depositFlexNft", async () => {
+      const contract = await getSignerContract();
+      const nft = ethers.getAddress(adminForm.flexNftAddress);
+      const tokenId = BigInt(adminForm.flexNftTokenId);
+      return contract.depositFlexNft(nft, tokenId);
+    });
+
+  const depositBundle = async () =>
+    submitAdminTx("depositBundle", async () => {
+      const contract = await getSignerContract();
+      const nftContracts = parseCsv(adminForm.bundleNftContracts).map((item) => ethers.getAddress(item));
+      const nftIds = parseCsvNumbers(adminForm.bundleNftIds);
+      const gnarsAmount = toGnarsWei("bundleGnarsAmount", adminForm.bundleGnarsAmount);
+      const boxType = Number.parseInt(adminForm.bundleBoxType, 10);
+      const weight = Number.parseInt(adminForm.bundleWeight, 10);
+      return contract.depositBundle(nftContracts, nftIds, gnarsAmount, boxType, weight);
+    });
+
+  const fetchPoolBalances = async () => {
+    try {
+      setAdminStatus("Admin: reading pool balances...");
+      const contract = await getReadContract();
+      const boxType = Number.parseInt(adminForm.poolBoxType, 10);
+      const balances = await contract.getPoolBalances(boxType);
+      setPoolBalances({ boxType, balances });
+      setAdminStatus("Admin: pool balances read");
+      log(`admin: pool balances ${balances.map((v) => v.toString()).join(" / ")}`);
+    } catch (err) {
+      const msg = err.shortMessage || err.reason || err.message || err;
+      setAdminStatus(`Admin: pool balances error ${msg}`);
+      log(`admin: pool balances error ${msg}`);
+    }
+  };
+
+  const fetchAllPoolBalances = async () => {
+    try {
+      setAdminStatus("Admin: reading all pool balances...");
+      const contract = await getReadContract();
+      const [standard, gnarly, epic] = await Promise.all([
+        contract.getPoolBalances(0),
+        contract.getPoolBalances(1),
+        contract.getPoolBalances(2),
+      ]);
+      setPoolBalancesAll({ standard, gnarly, epic });
+      setAdminStatus("Admin: all pool balances read");
+      log(
+        `admin: pool balances all s=${standard.map((v) => v.toString()).join("/")} g=${gnarly
+          .map((v) => v.toString())
+          .join("/")} e=${epic.map((v) => v.toString()).join("/")}`
+      );
+    } catch (err) {
+      const msg = err.shortMessage || err.reason || err.message || err;
+      setAdminStatus(`Admin: pool balances error ${msg}`);
+      log(`admin: pool balances error ${msg}`);
+    }
+  };
+
   const readContract = async () => {
     if (!window.ethereum) {
       setStatus("No injected wallet found (try MetaMask/Rabby on http://localhost).");
@@ -192,9 +542,35 @@ function App() {
       ]);
       let minFlexEth = null;
       let flexBalances = null;
+      let gnarsToken = null;
+      let gnarsUnit = null;
+      let flexNothingBps = null;
+      let flexNftBps = null;
+      let flexGnarsBase = null;
+      let flexGnarsPerEth = null;
+      let totalReservedGnars = null;
       if (contractKey === "v2") {
-        minFlexEth = await contract.minFlexEth();
-        flexBalances = await contract.getFlexBalances();
+        [
+          minFlexEth,
+          flexBalances,
+          gnarsToken,
+          gnarsUnit,
+          flexNothingBps,
+          flexNftBps,
+          flexGnarsBase,
+          flexGnarsPerEth,
+          totalReservedGnars,
+        ] = await Promise.all([
+          contract.minFlexEth(),
+          contract.getFlexBalances(),
+          contract.gnarsToken(),
+          contract.gnarsUnit(),
+          contract.flexNothingBps(),
+          contract.flexNftBps(),
+          contract.flexGnarsBase(),
+          contract.flexGnarsPerEth(),
+          contract.totalReservedGnars(),
+        ]);
       }
       setReadings({
         standardPrice,
@@ -207,6 +583,13 @@ function App() {
         coordinator,
         minFlexEth,
         flexBalances,
+        gnarsToken,
+        gnarsUnit,
+        flexNothingBps,
+        flexNftBps,
+        flexGnarsBase,
+        flexGnarsPerEth,
+        totalReservedGnars,
       });
       log(`read: standardPrice ${standardPrice.toString()}`);
       log(`read: treasury ${treasury}`);
@@ -377,6 +760,24 @@ function App() {
         <div className="pill warn">Set a valid treasury address</div>
       </section>
 
+      <section className="form">
+        <div className="tabs">
+          <button
+            className={`tab ${activeTab === "deploy" ? "active" : ""}`}
+            onClick={() => setActiveTab("deploy")}
+          >
+            Deploy
+          </button>
+          <button
+            className={`tab ${activeTab === "test" ? "active" : ""}`}
+            onClick={() => setActiveTab("test")}
+          >
+            Test
+          </button>
+        </div>
+      </section>
+
+      {activeTab === "deploy" && (
         <section className="form">
           <div className="grid">
             <div>
@@ -390,27 +791,6 @@ function App() {
               <label>Lootbox Contract</label>
               <input value={contractAddress} onChange={(e) => setContractAddress(e.target.value)} />
             </div>
-          </div>
-          <div className="actions">
-            <button className="secondary" onClick={readContract}>
-              Refresh Readings
-            </button>
-          </div>
-          <div className="readings">
-            <div><span>standardPrice</span><strong>{readings.standardPrice ? ethers.formatEther(readings.standardPrice) + " ETH" : "-"}</strong></div>
-            <div><span>gnarlyPrice</span><strong>{readings.gnarlyPrice ? ethers.formatEther(readings.gnarlyPrice) + " ETH" : "-"}</strong></div>
-            <div><span>epicPrice</span><strong>{readings.epicPrice ? ethers.formatEther(readings.epicPrice) + " ETH" : "-"}</strong></div>
-            <div><span>treasury</span><strong>{readings.treasury || "-"}</strong></div>
-            <div><span>paused</span><strong>{readings.paused === null ? "-" : readings.paused.toString()}</strong></div>
-            <div><span>subscriptionId</span><strong>{readings.subscriptionId ? readings.subscriptionId.toString() : "-"}</strong></div>
-            <div><span>keyHash</span><strong>{readings.keyHash || "-"}</strong></div>
-            <div><span>coordinator</span><strong>{readings.coordinator || "-"}</strong></div>
-            {contractKey === "v2" && (
-              <>
-                <div><span>minFlexEth</span><strong>{readings.minFlexEth ? ethers.formatEther(readings.minFlexEth) + " ETH" : "-"}</strong></div>
-                <div><span>flexBalances</span><strong>{readings.flexBalances ? readings.flexBalances.map((v) => v.toString()).join(" / ") : "-"}</strong></div>
-              </>
-            )}
           </div>
           <div className="grid">
             <div>
@@ -471,48 +851,342 @@ function App() {
             )}
           </div>
         </section>
+      )}
 
-      <section className="form">
-        <h2>Open Box</h2>
-        <div className="grid">
-          <div>
-            <label>Box Type</label>
-            <select value={openBoxType} onChange={(e) => setOpenBoxType(e.target.value)}>
-              <option value="0">Standard</option>
-              <option value="1">Gnarly</option>
-              <option value="2">Epic</option>
-              {contractKey === "v2" && <option value="3">Flex</option>}
-            </select>
-          </div>
-          {isFlexSelected && (
+      {activeTab === "test" && (
+        <section className="form">
+          <div className="grid">
             <div>
-              <label>Flex ETH</label>
-              <input value={flexEth} onChange={(e) => setFlexEth(e.target.value)} />
+              <label>Contract Version</label>
+              <select value={contractKey} onChange={(e) => setContractKey(e.target.value)}>
+                <option value="v1">V1</option>
+                <option value="v2">V2</option>
+              </select>
+            </div>
+            <div>
+              <label>Lootbox Contract</label>
+              <input value={contractAddress} onChange={(e) => setContractAddress(e.target.value)} />
+            </div>
+          </div>
+          <div className="actions">
+            <button className="secondary" onClick={readContract}>
+              Refresh Readings
+            </button>
+          </div>
+          <div className="readings">
+            <div><span>standardPrice</span><strong>{readings.standardPrice ? ethers.formatEther(readings.standardPrice) + " ETH" : "-"}</strong></div>
+            <div><span>gnarlyPrice</span><strong>{readings.gnarlyPrice ? ethers.formatEther(readings.gnarlyPrice) + " ETH" : "-"}</strong></div>
+            <div><span>epicPrice</span><strong>{readings.epicPrice ? ethers.formatEther(readings.epicPrice) + " ETH" : "-"}</strong></div>
+            <div><span>treasury</span><strong>{readings.treasury || "-"}</strong></div>
+            <div><span>paused</span><strong>{readings.paused === null ? "-" : readings.paused.toString()}</strong></div>
+            <div><span>subscriptionId</span><strong>{readings.subscriptionId ? readings.subscriptionId.toString() : "-"}</strong></div>
+            <div><span>keyHash</span><strong>{readings.keyHash || "-"}</strong></div>
+            <div><span>coordinator</span><strong>{readings.coordinator || "-"}</strong></div>
+            {contractKey === "v2" && (
+              <>
+                <div><span>minFlexEth</span><strong>{readings.minFlexEth ? ethers.formatEther(readings.minFlexEth) + " ETH" : "-"}</strong></div>
+                <div>
+                  <span>flexBalances</span>
+                  <strong>
+                    {readings.flexBalances
+                      ? `nftsAvailable=${readings.flexBalances[0].toString()} / availableGnars=${formatGnars(
+                          readings.flexBalances[1]
+                        )} / reservedGnars=${formatGnars(readings.flexBalances[2])}`
+                      : "-"}
+                  </strong>
+                </div>
+                <div><span>gnarsToken</span><strong>{readings.gnarsToken || "-"}</strong></div>
+                <div><span>gnarsUnit</span><strong>{readings.gnarsUnit ? readings.gnarsUnit.toString() : "-"}</strong></div>
+                <div><span>flexNothingBps</span><strong>{readings.flexNothingBps !== null ? readings.flexNothingBps.toString() : "-"}</strong></div>
+                <div><span>flexNftBps</span><strong>{readings.flexNftBps !== null ? readings.flexNftBps.toString() : "-"}</strong></div>
+                <div><span>flexGnarsBase</span><strong>{readings.flexGnarsBase ? readings.flexGnarsBase.toString() : "-"}</strong></div>
+                <div><span>flexGnarsPerEth</span><strong>{readings.flexGnarsPerEth ? readings.flexGnarsPerEth.toString() : "-"}</strong></div>
+                <div><span>totalReservedGnars</span><strong>{readings.totalReservedGnars ? readings.totalReservedGnars.toString() : "-"}</strong></div>
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
+      {activeTab === "test" && contractKey === "v2" && (
+        <section className="form">
+          <h2>Admin (V2)</h2>
+          <div className="grid">
+            <div>
+              <label>Standard Price (ETH)</label>
+              <input name="standardPriceEth" value={adminForm.standardPriceEth} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>Gnarly Price (ETH)</label>
+              <input name="gnarlyPriceEth" value={adminForm.gnarlyPriceEth} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>Epic Price (ETH)</label>
+              <input name="epicPriceEth" value={adminForm.epicPriceEth} onChange={handleAdminChange} />
+            </div>
+          </div>
+          <div className="actions">
+            <button className="secondary" onClick={setPrices}>Set Prices</button>
+          </div>
+
+          <div className="grid">
+            <div>
+              <label>Set Treasury</label>
+              <input name="newTreasury" value={adminForm.newTreasury} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>ERC721 Allowlist</label>
+              <div className="stack">
+                <input name="allowedNft" value={adminForm.allowedNft} onChange={handleAdminChange} placeholder="NFT address" />
+                <select name="allowedValue" value={adminForm.allowedValue} onChange={handleAdminChange}>
+                  <option value="true">Allow</option>
+                  <option value="false">Block</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div className="actions">
+            <button className="secondary" onClick={setTreasury}>Set Treasury</button>
+            <button className="secondary" onClick={setAllowedERC721}>Update Allowlist</button>
+          </div>
+
+          <div className="grid">
+            <div>
+              <label>Callback Gas Limit</label>
+              <input name="callbackGasLimit" value={adminForm.callbackGasLimit} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>Request Confirmations</label>
+              <input name="requestConfirmations" value={adminForm.requestConfirmations} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>Num Words</label>
+              <input name="numWords" value={adminForm.numWords} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>VRF Key Hash</label>
+              <input name="vrfKeyHash" value={adminForm.vrfKeyHash} onChange={handleAdminChange} />
+            </div>
+          </div>
+          <div className="actions">
+            <button className="secondary" onClick={setVrfConfig}>Set VRF Config</button>
+          </div>
+
+          <div className="grid">
+            <div>
+              <label>Min Flex ETH</label>
+              <input name="minFlexEth" value={adminForm.minFlexEth} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>Flex Nothing Bps</label>
+              <input name="flexNothingBps" value={adminForm.flexNothingBps} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>Flex NFT Bps</label>
+              <input name="flexNftBps" value={adminForm.flexNftBps} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>Flex GNARS Base (tokens)</label>
+              <input name="flexGnarsBase" value={adminForm.flexGnarsBase} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>Flex GNARS per 1 ETH (tokens)</label>
+              <input name="flexGnarsPerEth" value={adminForm.flexGnarsPerEth} onChange={handleAdminChange} />
+            </div>
+          </div>
+          <div className="actions">
+            <button className="secondary" onClick={setFlexConfig}>Set Flex Config</button>
+            <button className="secondary" onClick={pauseContract}>Pause</button>
+            <button className="secondary" onClick={unpauseContract}>Unpause</button>
+          </div>
+
+          <div className="grid">
+            <div>
+              <label>Approve ERC20 (token)</label>
+              <input name="approveErc20Token" value={adminForm.approveErc20Token} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>Approve ERC20 (spender)</label>
+              <input name="approveErc20Spender" value={adminForm.approveErc20Spender} onChange={handleAdminChange} placeholder={`Default: ${contractAddress}`} />
+            </div>
+            <div>
+              <label>Approve ERC20 Amount (tokens)</label>
+              <input name="approveErc20Amount" value={adminForm.approveErc20Amount} onChange={handleAdminChange} />
+            </div>
+          </div>
+          <div className="actions">
+            <button className="secondary" onClick={approveErc20}>Approve ERC20</button>
+          </div>
+
+          <div className="grid">
+            <div>
+              <label>Approve ERC721 (token)</label>
+              <input name="approveErc721Token" value={adminForm.approveErc721Token} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>Approve ERC721 (spender)</label>
+              <input name="approveErc721Spender" value={adminForm.approveErc721Spender} onChange={handleAdminChange} placeholder={`Default: ${contractAddress}`} />
+            </div>
+            <div>
+              <label>Approve ERC721 Token ID</label>
+              <input name="approveErc721TokenId" value={adminForm.approveErc721TokenId} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>Approval For All (operator)</label>
+              <input name="approveErc721Operator" value={adminForm.approveErc721Operator} onChange={handleAdminChange} placeholder={`Default: ${contractAddress}`} />
+            </div>
+            <div>
+              <label>Approval For All (approved)</label>
+              <select name="approveErc721Approved" value={adminForm.approveErc721Approved} onChange={handleAdminChange}>
+                <option value="true">true</option>
+                <option value="false">false</option>
+              </select>
+            </div>
+          </div>
+          <div className="actions">
+            <button className="secondary" onClick={approveErc721}>Approve ERC721</button>
+            <button className="secondary" onClick={approveErc721ForAll}>Approve ERC721 (All)</button>
+          </div>
+
+          <div className="grid">
+            <div>
+              <label>Deposit GNARS (tokens)</label>
+              <input name="depositGnarsAmount" value={adminForm.depositGnarsAmount} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>Deposit Flex NFT (address)</label>
+              <input name="flexNftAddress" value={adminForm.flexNftAddress} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>Deposit Flex NFT (tokenId)</label>
+              <input name="flexNftTokenId" value={adminForm.flexNftTokenId} onChange={handleAdminChange} />
+            </div>
+          </div>
+          <div className="actions">
+            <button className="secondary" onClick={depositGnars}>Deposit GNARS</button>
+            <button className="secondary" onClick={depositFlexNft}>Deposit Flex NFT</button>
+          </div>
+
+          <div className="grid">
+            <div>
+              <label>Bundle Box Type</label>
+              <select name="bundleBoxType" value={adminForm.bundleBoxType} onChange={handleAdminChange}>
+                <option value="0">Standard</option>
+                <option value="1">Gnarly</option>
+                <option value="2">Epic</option>
+              </select>
+            </div>
+            <div>
+              <label>Bundle Weight</label>
+              <input name="bundleWeight" value={adminForm.bundleWeight} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>Bundle GNARS Amount (tokens)</label>
+              <input name="bundleGnarsAmount" value={adminForm.bundleGnarsAmount} onChange={handleAdminChange} />
+            </div>
+            <div>
+              <label>Bundle NFT Contracts (CSV)</label>
+              <input name="bundleNftContracts" value={adminForm.bundleNftContracts} onChange={handleAdminChange} placeholder="0xabc...,0xdef..." />
+            </div>
+            <div>
+              <label>Bundle NFT IDs (CSV)</label>
+              <input name="bundleNftIds" value={adminForm.bundleNftIds} onChange={handleAdminChange} placeholder="1,2,3" />
+            </div>
+          </div>
+          <div className="actions">
+            <button className="secondary" onClick={depositBundle}>Deposit Bundle</button>
+          </div>
+
+          <div className="grid">
+            <div>
+              <label>Pool Box Type</label>
+              <select name="poolBoxType" value={adminForm.poolBoxType} onChange={handleAdminChange}>
+                <option value="0">Standard</option>
+                <option value="1">Gnarly</option>
+                <option value="2">Epic</option>
+              </select>
+            </div>
+          </div>
+          <div className="actions">
+            <button className="secondary" onClick={fetchPoolBalances}>Get Pool Balances</button>
+            <button className="secondary" onClick={fetchAllPoolBalances}>Get All Pools</button>
+          </div>
+          <div className="statusBox">
+            <div className="label">Pool Balances</div>
+            <pre>
+              {poolBalances
+                ? `Box ${poolBalances.boxType}: ${poolBalances.balances.map((v) => v.toString()).join(" / ")}`
+                : "-"}
+            </pre>
+            <div className="muted small">
+              Fields: totalGnars / totalNfts / remainingBundles / totalWeight.
+            </div>
+          </div>
+          {poolBalancesAll && (
+            <div className="statusBox">
+              <div className="label">All Pools</div>
+              <pre>
+                {`Standard: ${poolBalancesAll.standard.map((v) => v.toString()).join(" / ")}\n`}
+                {`Gnarly:   ${poolBalancesAll.gnarly.map((v) => v.toString()).join(" / ")}\n`}
+                {`Epic:     ${poolBalancesAll.epic.map((v) => v.toString()).join(" / ")}`}
+              </pre>
+              <div className="muted small">
+                Fields: totalGnars / totalNfts / remainingBundles / totalWeight.
+              </div>
             </div>
           )}
-        </div>
-        <div className="actions">
-          <button className="primary"  onClick={() => openBox(false)}>
-            {isFlexSelected ? "Open Flex Box" : "Open Box (uses on-chain price)"}
-          </button>
-          <button className="secondary" onClick={() => openBox(true)}>
-            Force Send (skip static call)
-          </button>
-        </div>
-        <div className="statusBox">
-          <div className="label">OpenBox Status</div>
-          <pre>{openStatus}</pre>
-        </div>
-      </section>
+          <div className="statusBox">
+            <div className="label">Admin Status</div>
+            <pre>{adminStatus}</pre>
+          </div>
+        </section>
+      )}
 
-      <section className="statusBox">
-        <div className="label">Status</div>
-        <pre>{status}</pre>
-      </section>
-      <section className="statusBox">
-        <div className="label">Debug Log</div>
-        <pre>{debugLog.join("\n")}</pre>
-      </section>
+      {activeTab === "test" && (
+        <>
+          <section className="form">
+            <h2>Open Box</h2>
+            <div className="grid">
+              <div>
+                <label>Box Type</label>
+                <select value={openBoxType} onChange={(e) => setOpenBoxType(e.target.value)}>
+                  <option value="0">Standard</option>
+                  <option value="1">Gnarly</option>
+                  <option value="2">Epic</option>
+                  {contractKey === "v2" && <option value="3">Flex</option>}
+                </select>
+              </div>
+              {isFlexSelected && (
+                <div>
+                  <label>Flex ETH</label>
+                  <input value={flexEth} onChange={(e) => setFlexEth(e.target.value)} />
+                </div>
+              )}
+            </div>
+            <div className="actions">
+              <button className="primary"  onClick={() => openBox(false)}>
+                {isFlexSelected ? "Open Flex Box" : "Open Box (uses on-chain price)"}
+              </button>
+              <button className="secondary" onClick={() => openBox(true)}>
+                Force Send (skip static call)
+              </button>
+            </div>
+            <div className="statusBox">
+              <div className="label">OpenBox Status</div>
+              <pre>{openStatus}</pre>
+            </div>
+          </section>
+
+          <section className="statusBox">
+            <div className="label">Status</div>
+            <pre>{status}</pre>
+          </section>
+          <section className="statusBox">
+            <div className="label">Debug Log</div>
+            <pre>{debugLog.join("\n")}</pre>
+          </section>
+        </>
+      )}
     </div>
   );
 }
