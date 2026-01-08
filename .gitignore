@@ -1,22 +1,28 @@
-# Compiler files
-cache/
-out/
+# Hardhat
+artifacts/
+cache_hardhat/
+typechain-types/
 
-# Ignores development broadcast logs
-!/broadcast
-/broadcast/*/31337/
-/broadcast/**/dry-run/
+# Dependencies
+node_modules/
 
-# Docs
-docs/
-
-# Dotenv file
+# Environment
 .env
 
-# OS junk
-.DS_Store
+# Build outputs
+dist/
+out/
 
-# Node
-node_modules/
-frontend/node_modules/
-frontend/dist/
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
