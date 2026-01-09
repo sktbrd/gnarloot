@@ -1,0 +1,39 @@
+{
+  "name": "gnars-lootbox-security-tests",
+  "version": "1.0.0",
+  "description": "Comprehensive security tests for Gnars Lootbox contracts",
+  "scripts": {
+    "test": "hardhat test",
+    "test:security": "hardhat test 'test/security/*.test.ts'",
+    "test:v1": "hardhat test test/security/GnarsLootboxV1.security.test.ts",
+    "test:v1:exhaustive": "hardhat test test/security/GnarsLootboxV1.exhaustive.test.ts",
+    "test:v2": "hardhat test test/security/GnarsLootboxV2.security.test.ts",
+    "test:prod": "hardhat test test/security/production.test.ts",
+    "test:economic": "hardhat test test/security/economic.attacks.test.ts",
+    "test:integration": "hardhat test test/security/integration.stress.test.ts",
+    "test:all": "hardhat test 'test/security/*.test.ts'"
+  },
+  "devDependencies": {
+    "@chainlink/contracts": "^1.0.0",
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.0",
+    "@nomicfoundation/hardhat-ethers": "^3.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.0",
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@openzeppelin/contracts": "^5.0.0",
+    "@typechain/ethers-v6": "^0.5.0",
+    "@typechain/hardhat": "^9.0.0",
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^10.0.0",
+    "@types/node": "^20.0.0",
+    "chai": "^4.3.0",
+    "ethers": "^6.10.0",
+    "hardhat": "^2.19.0",
+    "hardhat-gas-reporter": "^1.0.9",
+    "hardhat-preprocessor": "^0.1.5",
+    "solidity-coverage": "^0.8.5",
+    "ts-node": "^10.9.0",
+    "typechain": "^8.3.0",
+    "typescript": "^5.3.0"
+  }
+}
