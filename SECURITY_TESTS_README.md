@@ -1,6 +1,6 @@
-# Gnars Lootbox Security Test Suite
+# Gnars Lootbox Security Test Suite (Legacy)
 
-Comprehensive security testing suite for Gnars Lootbox V1 and V2 contracts using Hardhat and TypeScript.
+This suite targets **legacy V1/V2** contracts. V4 is not covered here.
 
 ## Overview
 

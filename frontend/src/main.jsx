@@ -5,7 +5,7 @@ import { WagmiConfig, configureChains, createConfig } from "wagmi";
 import { base } from "wagmi/chains";
 import { jsonRpcProvider } from "wagmi/providers/jsonRpc";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import App from "./App";
+import AppV4 from "./AppV4";
 import "./index.css";
 import "@rainbow-me/rainbowkit/styles.css";
 
@@ -23,7 +23,7 @@ const { chains, publicClient, webSocketPublicClient } = configureChains(
 );
 
 const { connectors } = getDefaultWallets({
-  appName: "Gnars Lootbox V1 Deploy",
+  appName: "Gnars Lootbox V4 Deploy",
   projectId,
   chains,
 });
@@ -49,7 +49,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             borderRadius: "medium",
           })}
         >
-          <App />
+          <AppV4 />
         </RainbowKitProvider>
       </QueryClientProvider>
     </WagmiConfig>
